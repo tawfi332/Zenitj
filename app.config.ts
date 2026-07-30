@@ -9,11 +9,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   icon: "./assets/icon.png",
   scheme: "zenitj",
   userInterfaceStyle: "automatic",
-  splash: {
-    image: "./assets/splash.png",
-    resizeMode: "contain",
-    backgroundColor: "#0B1120",
-  },
   assetBundlePatterns: ["**/*"],
   ios: {
     supportsTablet: true,
@@ -31,7 +26,19 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     output: "static",
     favicon: "./assets/favicon.png",
   },
-  plugins: ["expo-router", "expo-notifications"],
+  plugins: [
+    "expo-router",
+    "expo-notifications",
+    // SDK 52+ moved splash out of ExpoConfig into this config plugin.
+    [
+      "expo-splash-screen",
+      {
+        image: "./assets/splash.png",
+        resizeMode: "contain",
+        backgroundColor: "#0B1120",
+      },
+    ],
+  ],
   experiments: {
     typedRoutes: true,
   },

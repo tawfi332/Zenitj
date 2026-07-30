@@ -3,7 +3,9 @@ import { Platform } from "react-native";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    // SDK 52+ replaced shouldShowAlert with these two.
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: false,
     shouldSetBadge: false,
   }),
@@ -39,7 +41,13 @@ export async function scheduleDailyReminder(
       title: "Zenitj",
       body: "Time to check in — log your habits and where your time went today.",
     },
-    trigger: { hour, minute, repeats: true, channelId: "reminders" },
+    // SDK 52+ requires an explicit trigger type; DAILY repeats by definition.
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DAILY,
+      hour,
+      minute,
+      channelId: "reminders",
+    },
   });
   return true;
 }
