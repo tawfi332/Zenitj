@@ -1,18 +1,30 @@
 name: Build Android APK
 
-# Builds an installable (unsigned release) APK and uploads it as a workflow
-# artifact you can download from the run's "Artifacts" section.
+# Builds an installable release APK and publishes it to GitHub Releases, so you
+# can open the release page on your phone and tap the .apk to install it.
 #
-# Requires two repository secrets (Settings -> Secrets and variables -> Actions):
+# Signing: `expo prebuild` generates android/app/build.gradle with the release
+# buildType wired to signingConfigs.debug (the bundled android/app/debug.keystore).
+# So the APK is signed and installable, with the SAME signature every build --
+# updates install straight over the previous one. That key is the well-known
+# Android debug key, which is fine for sideloading onto your own device but is
+# NOT acceptable for the Play Store; that would need a real keystore.
+#
+# Optional repository secrets (Settings -> Secrets and variables -> Actions).
+# Without them the app still builds, but starts unconfigured: login fails and
+# src/lib/supabase.ts logs "Supabase is not configured".
 #   EXPO_PUBLIC_SUPABASE_URL
 #   EXPO_PUBLIC_SUPABASE_ANON_KEY
 
 on:
   push:
     branches:
-      - claude/github-repo-context-mj84ug
       - main
   workflow_dispatch:
+
+# Required to create releases and upload the APK to them.
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -41,8 +53,9 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      # .npmrc sets legacy-peer-deps, which SDK 57's peer graph needs.
       - name: Install dependencies
-        run: npm install --legacy-peer-deps
+        run: npm install
 
       - name: Prebuild (generate native Android project)
         run: npx expo prebuild --platform android --no-install
@@ -54,11 +67,25 @@ jobs:
         working-directory: android
         run: ./gradlew assembleRelease --no-daemon
 
-      - name: Rename APK
+      - name: Collect APK
         run: |
           mkdir -p out
-          cp android/app/build/outputs/apk/release/app-release.apk out/zenitj.apk || \
-          cp android/app/build/outputs/apk/release/app-release-unsigned.apk out/zenitj.apk
+          src=android/app/build/outputs/apk/release/app-release.apk
+          if [ ! -f "$src" ]; then
+            echo "::error::Expected a signed APK at $src"
+            echo "Contents of the release output dir:"
+            ls -la android/app/build/outputs/apk/release/ || true
+            exit 1
+          fi
+          cp "$src" out/zenitj.apk
+          echo "APK_SIZE=$(du -h out/zenitj.apk | cut -f1)" >> "$GITHUB_ENV"
+
+      - name: Verify the APK is actually signed
+        run: |
+          # An unsigned APK installs nowhere, so fail loudly here rather than
+          # publishing a release that nobody can install.
+          apksigner="$(find "$ANDROID_HOME/build-tools" -name apksigner | sort | tail -1)"
+          "$apksigner" verify --print-certs out/zenitj.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -66,3 +93,19 @@ jobs:
           name: zenitj-apk
           path: out/zenitj.apk
           if-no-files-found: error
+
+      - name: Publish to Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Zenitj build ${{ github.run_number }}
+          body: |
+            Installable Android APK — ${{ env.APK_SIZE }}
+
+            **On your phone:** tap `zenitj.apk` below. The first time, Android
+            will ask you to allow "Install unknown apps" for your browser.
+
+            Commit `${{ github.sha }}`
+          files: out/zenitj.apk
+          draft: false
+          prerelease: true
