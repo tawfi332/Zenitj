@@ -1,33 +1,30 @@
 # Dependencies
 node_modules/
-vendor/
-.venv/
-venv/
-__pycache__/
-*.py[cod]
 
-# Build output
+# Expo
+.expo/
 dist/
-build/
-out/
-target/
-*.log
+web-build/
+expo-env.d.ts.bak
 
-# Environment / secrets
+# Native
+android/
+ios/
+*.orig.*
+
+# Env / secrets
 .env
-.env.*
-!.env.example
-*.pem
+.env.local
+.env*.local
+
+# Generated app assets (created by scripts/gen-assets.js on postinstall)
+assets/*.png
+
+# Misc
+npm-debug.*
+*.jks
+*.p12
 *.key
-
-# Editor / OS
-.vscode/
-.idea/
-*.swp
+*.mobileprovision
 .DS_Store
-Thumbs.db
-desktop.ini
-
-# OneDrive sync artifacts
-*.tmp
-~$*
+*.log
